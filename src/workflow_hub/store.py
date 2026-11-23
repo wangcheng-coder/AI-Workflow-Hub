@@ -19,6 +19,9 @@ class RunStore:
         )
         self.conn.commit()
 
+    def ids(self) -> list[str]:
+        return [row[0] for row in self.conn.execute("SELECT id FROM runs")]
+
     def get(self, run_id: str) -> dict | None:
         row = self.conn.execute("SELECT payload FROM runs WHERE id=?", (run_id,)).fetchone()
         if row is None:

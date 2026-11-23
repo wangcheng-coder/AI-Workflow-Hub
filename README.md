@@ -54,3 +54,7 @@ docker build -t ai-workflow-hub:local .
 ```
 
 `main` 分支的 `.github/workflows/image.yml` 会把镜像推到 `ghcr.io/1455224865w-cmd/ai-workflow-hub`。
+
+## 页面
+
+打开服务根路径 `/`。五个项目使用同一套版式：顶栏、左右两栏、中英文切换。页面只调用本服务已有的接口。

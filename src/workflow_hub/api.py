@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import uuid
 
+from pathlib import Path
+
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from workflow_hub.engine import SecurityError, WorkflowError, dry_run, execute, parse_workflow
@@ -22,10 +26,21 @@ class ResumeIn(BaseModel):
     approvals: dict = Field(default_factory=dict)
 
 
+def _mount_console(app: FastAPI) -> None:
+    web = Path(__file__).resolve().parent / "web"
+
+    @app.get("/", include_in_schema=False)
+    def console_page():
+        return FileResponse(web / "index.html")
+
+    app.mount("/assets", StaticFiles(directory=web), name="assets")
+
+
 def create_app(db_path: str | None = None) -> FastAPI:
-    app = FastAPI(title="AI Workflow Hub", version="0.1.7")
+    app = FastAPI(title="AI Workflow Hub", version="0.1.8")
     install(app)
     mount(app)
+    _mount_console(app)
     app.state.runs = {}
     app.state.store = RunStore(db_path) if db_path else None
 
@@ -61,6 +76,37 @@ def create_app(db_path: str | None = None) -> FastAPI:
         except (WorkflowError, SecurityError) as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return dry_run(workflow)
+
+    def brief(run_id: str, saved: dict) -> dict:
+        result = saved.get("result") or {}
+        return {
+            "id": run_id,
+            "name": result.get("name"),
+            "status": result.get("status"),
+            "paused_at": result.get("paused_at"),
+            "shell_executed": False,
+        }
+
+    @app.get("/api/runs")
+    def list_runs():
+        found = {}
+        for run_id, saved in app.state.runs.items():
+            found[run_id] = brief(run_id, saved)
+        if app.state.store is not None:
+            for run_id in app.state.store.ids():
+                if run_id in found:
+                    continue
+                saved = app.state.store.get(run_id)
+                if saved is not None:
+                    found[run_id] = brief(run_id, saved)
+        return list(found.values())
+
+    @app.get("/api/runs/{run_id}")
+    def get_run(run_id: str):
+        saved = load(run_id)
+        if saved is None:
+            raise HTTPException(status_code=404, detail="运行记录不存在")
+        return {"id": run_id, "result": saved["result"]}
 
     @app.post("/api/runs")
     def start(body: WorkflowIn, request: Request):
