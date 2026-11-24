@@ -110,6 +110,21 @@ def _cycle(graph: dict) -> bool:
     return any(walk(node) for node in graph if color.get(node) != 2)
 
 
+_URL_VAR = re.compile(r"\{\{([A-Za-z_][A-Za-z0-9_]*)\}\}")
+
+
+def fill_http_url(url: str, context: dict) -> str:
+    """只替换已经存在的字符串变量。替换后再做公网地址检查。"""
+
+    def replace(match: re.Match) -> str:
+        value = context.get(match.group(1))
+        if not isinstance(value, str) or not value:
+            raise WorkflowError("HTTP 地址里的变量必须是已有的非空字符串")
+        return value
+
+    return _URL_VAR.sub(replace, url)
+
+
 def assert_public_url(url: str, resolver) -> None:
     parsed = urlparse(url)
     if parsed.scheme not in {"http", "https"} or not parsed.hostname:
@@ -333,7 +348,7 @@ def _run_node(node, context, transport, resolver, approvals, provider=None):
         prompt = str(config.get("prompt") or "")
         return {"text": provider.complete(prompt)}
     if kind == "http":
-        url = config.get("url") or ""
+        url = fill_http_url(str(config.get("url") or ""), context)
         assert_public_url(url, resolver or _default_resolver)
         if transport is None:
             raise WorkflowError("没有配置 HTTP 传输，拒绝直接访问网络")

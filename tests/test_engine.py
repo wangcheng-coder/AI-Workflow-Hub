@@ -213,3 +213,30 @@ def test_resume_restores_script_and_http_context():
     assert resumed["context"]["label"] == "kept"
     assert resumed["context"]["count"] == 5
     assert calls["n"] == 1
+
+
+def test_http_url_uses_context_then_rejects_private_hosts():
+    seen = {}
+
+    def transport(method, url, timeout):
+        seen["url"] = url
+        return {}
+
+    workflow = parse_workflow("""
+    name: templated
+    version: 1
+    nodes:
+      - {id: start, type: start}
+      - id: call
+        type: http
+        config: {url: "https://{{host}}/health"}
+      - {id: end, type: end}
+    edges:
+      - {from: start, to: call}
+      - {from: call, to: end}
+    """)
+    done = execute(workflow, {"host": "example.com"}, transport=transport, resolver=lambda host: ["93.184.216.34"])
+    assert done["status"] == "succeeded"
+    assert seen["url"] == "https://example.com/health"
+    blocked = execute(workflow, {"host": "127.0.0.1"}, transport=transport, resolver=lambda host: ["127.0.0.1"])
+    assert blocked["status"] == "failed"
