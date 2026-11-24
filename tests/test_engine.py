@@ -240,3 +240,24 @@ def test_http_url_uses_context_then_rejects_private_hosts():
     assert seen["url"] == "https://example.com/health"
     blocked = execute(workflow, {"host": "127.0.0.1"}, transport=transport, resolver=lambda host: ["127.0.0.1"])
     assert blocked["status"] == "failed"
+
+
+def test_script_can_copy_an_existing_variable():
+    workflow = parse_workflow("""
+    name: copy-var
+    version: 1
+    nodes:
+      - {id: start, type: start}
+      - id: copy
+        type: script
+        config: {action: set, key: alias, from: host}
+      - {id: end, type: end}
+    edges:
+      - {from: start, to: copy}
+      - {from: copy, to: end}
+    """)
+    done = execute(workflow, {"host": "example.com"})
+    assert done["status"] == "succeeded"
+    assert done["context"]["alias"] == "example.com"
+    missing = execute(workflow, {})
+    assert missing["status"] == "failed"

@@ -274,7 +274,11 @@ def _restore_context(node, output, context) -> None:
     if kind == "script" and config.get("action") == "set":
         key = config.get("key") or ""
         if isinstance(key, str) and key.isidentifier():
-            context[key] = config.get("value")
+            source = config.get("from")
+            if isinstance(source, str) and source.isidentifier() and source in context:
+                context[key] = context[source]
+            else:
+                context[key] = config.get("value")
             _context_size(context)
         return
     if kind == "http":
@@ -325,7 +329,13 @@ def _run_node(node, context, transport, resolver, approvals, provider=None):
         key = config.get("key") or ""
         if not key.isidentifier():
             raise SecurityError("变量名不合法")
-        context[key] = config.get("value")
+        source = config.get("from")
+        if source is not None:
+            if not isinstance(source, str) or not source.isidentifier() or source not in context:
+                raise SecurityError("script 的 from 必须是已有变量")
+            context[key] = context[source]
+        else:
+            context[key] = config.get("value")
         _context_size(context)
         return {"set": key}
     if kind == "shell":

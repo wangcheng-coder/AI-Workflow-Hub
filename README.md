@@ -7,7 +7,7 @@
 - 解析并校验 version 1 的 YAML：唯一的 start、至少一个 end、无环、节点不超过 100 个。
 - 运行 start、end、condition、script、http、delay、approval 和 shell。
 - condition 使用自写表达式，只支持比较、与或非和括号，不调用 `eval`。
-- script 只允许 `action: set`。
+- script 只允许 `action: set`。可以用 `from` 复制一个已经存在的变量，不能执行代码。
 - http 地址可以写 `{{变量}}`，只替换上下文里已有的非空字符串，替换后再拒绝本机、内网和链路本地地址。库函数默认没有传输器，因此不会自己发请求。
 - shell 节点只记录“未执行”，不会启动进程。
 - 重试最多 5 次。delay 超过 `timeout_seconds` 会失败。
