@@ -129,7 +129,10 @@ def _eval(node, context):
             "<=": lambda a, b: a <= b,
             ">=": lambda a, b: a >= b,
         }
-        return ops[node[1]](left, right)
+        try:
+            return ops[node[1]](left, right)
+        except TypeError as exc:
+            raise ExprError("比较的类型不一致") from exc
     if kind == "string":
         return node[1]
     if kind == "number":

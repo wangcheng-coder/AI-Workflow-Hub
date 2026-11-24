@@ -144,3 +144,72 @@ def test_retry_then_success_and_approval_resume():
     resumed = execute(approval, approvals={"review": True}, prior=prior)
     assert resumed["status"] == "succeeded"
     assert resumed["states"]["start"] == "succeeded"
+
+
+def test_boolean_when_and_mixed_comparison():
+    workflow = parse_workflow("""
+    name: flag
+    version: 1
+    nodes:
+      - {id: start, type: start}
+      - id: gate
+        type: condition
+        config: {expression: "count > 1"}
+      - {id: end, type: end}
+    edges:
+      - {from: start, to: gate}
+      - from: gate
+        to: end
+        when: true
+    """)
+    assert execute(workflow, {"count": 2})["status"] == "succeeded"
+    failed = execute(workflow, {"count": "5"})
+    assert failed["status"] == "failed"
+    assert "类型" in failed["error"]
+
+
+def test_resume_restores_script_and_http_context():
+    calls = {"n": 0}
+
+    def transport(method, url, timeout):
+        calls["n"] += 1
+        return {"count": 5}
+
+    workflow = parse_workflow("""
+    name: resume-context
+    version: 1
+    nodes:
+      - {id: start, type: start}
+      - id: remember
+        type: script
+        config: {action: set, key: label, value: kept}
+      - id: call
+        type: http
+        config: {url: https://example.com/health}
+      - {id: review, type: approval}
+      - id: gate
+        type: condition
+        config: {expression: "count > 1"}
+      - {id: end, type: end}
+    edges:
+      - {from: start, to: remember}
+      - {from: remember, to: call}
+      - {from: call, to: review}
+      - {from: review, to: gate}
+      - {from: gate, to: end, when: "true"}
+    """)
+    paused = execute(workflow, transport=transport, resolver=lambda host: ["93.184.216.34"])
+    assert paused["status"] == "paused"
+    assert calls["n"] == 1
+    prior = {item["node"]: item["output"] for item in paused["logs"] if item["status"] == "succeeded"}
+    resumed = execute(
+        workflow,
+        transport=transport,
+        resolver=lambda host: ["93.184.216.34"],
+        approvals={"review": True},
+        prior=prior,
+    )
+    assert resumed["status"] == "succeeded"
+    assert resumed["context"]["label"] == "kept"
+    assert resumed["context"]["count"] == 5
+    assert calls["n"] == 1

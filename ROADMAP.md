@@ -2,10 +2,10 @@
 
 ## 远程仓库
 
-- 仓库：https://github.com/1455224865w-cmd/AI-Workflow-Hub
+- 仓库：https://github.com/wangcheng-coder/AI-Workflow-Hub
 - `main` 已推送初始提交 `bf87e74`。
 - CI 工作流是 `.github/workflows/ci.yml`，只安装项目并运行 `pytest`。
-- 首次推送的运行已成功：https://github.com/1455224865w-cmd/AI-Workflow-Hub/actions/runs/44689668267
+- 首次推送的运行已成功：https://github.com/wangcheng-coder/AI-Workflow-Hub/actions/runs/44689668267
 - Milestone「0.2 下一步」跟踪下面三个 Issue：
   - #1 用 PostgreSQL 保存运行状态
   - #2 增加不绑定厂商的模型提供方接口

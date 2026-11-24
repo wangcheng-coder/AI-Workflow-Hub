@@ -1,5 +1,11 @@
 # 变更记录
 
+## 0.1.9
+
+- 镜像地址改为当前 GitHub 账号 `wangcheng-coder`。发布工作流用仓库所有者生成 `ghcr.io/${{ github.repository_owner }}/ai-workflow-hub`。
+- 恢复执行时会写回脚本变量和已记录的 HTTP 上下文，不再重新请求。
+- 布尔 `when: true` 可以通过校验。类型不一致的比较记为本次运行失败。
+
 ## 0.1.8
 
 - 增加统一控制台，并可以查看本地运行记录。空跑和运行都不执行 Shell。

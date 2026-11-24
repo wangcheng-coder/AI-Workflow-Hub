@@ -53,7 +53,7 @@ Spring AI 的 MCP 地址放在 Nacos 的 `nacos/spring-mcp.yaml`。`spring-ai/ap
 docker build -t ai-workflow-hub:local .
 ```
 
-`main` 分支的 `.github/workflows/image.yml` 会把镜像推到 `ghcr.io/1455224865w-cmd/ai-workflow-hub`。
+`main` 分支的 `.github/workflows/image.yml` 会把镜像推到 `ghcr.io/wangcheng-coder/ai-workflow-hub`。
 
 ## 页面
 

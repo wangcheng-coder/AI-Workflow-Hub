@@ -84,6 +84,11 @@ def validate(data: dict) -> None:
         if source not in known or target not in known:
             raise WorkflowError("边引用了不存在的节点")
         when = edge.get("when")
+        if when is True:
+            edge["when"] = "true"
+        elif when is False:
+            edge["when"] = "false"
+        when = edge.get("when")
         if when not in (None, "true", "false"):
             raise WorkflowError("边的 when 只能是 true 或 false")
         graph[source].append(target)
@@ -194,6 +199,7 @@ def execute(workflow: dict, inputs: dict | None = None, transport=None, resolver
         states[node_id] = "succeeded"
         completed.add(node_id)
         activated.add(node_id)
+        _restore_context(nodes[node_id], output if isinstance(output, dict) else {}, context)
         _activate(nodes[node_id], output, outgoing[node_id], activated)
 
     while True:
@@ -245,6 +251,24 @@ def execute(workflow: dict, inputs: dict | None = None, transport=None, resolver
             states[node_id] = "skipped"
     status = "succeeded" if any(nodes[node_id]["type"] == "end" and states[node_id] == "succeeded" for node_id in states) else "failed"
     return _result(workflow, status, states, logs, context, attempts, None if status == "succeeded" else "没有到达 end")
+
+
+def _restore_context(node, output, context) -> None:
+    kind = node["type"]
+    config = node.get("config") or {}
+    if kind == "script" and config.get("action") == "set":
+        key = config.get("key") or ""
+        if isinstance(key, str) and key.isidentifier():
+            context[key] = config.get("value")
+            _context_size(context)
+        return
+    if kind == "http":
+        written = output.get("context")
+        if isinstance(written, dict):
+            for key, value in written.items():
+                if isinstance(key, str) and key.isidentifier():
+                    context[key] = value
+            _context_size(context)
 
 
 def _activate(node, output, edges, activated) -> None:
@@ -314,12 +338,14 @@ def _run_node(node, context, transport, resolver, approvals, provider=None):
         if transport is None:
             raise WorkflowError("没有配置 HTTP 传输，拒绝直接访问网络")
         result = transport(config.get("method") or "GET", url, timeout)
+        written = {}
         if isinstance(result, dict):
             for key, value in result.items():
                 if isinstance(key, str) and key.isidentifier():
                     context[key] = value
+                    written[key] = value
             _context_size(context)
-        return {"called": True}
+        return {"called": True, "context": written}
     raise WorkflowError(f"未实现的节点 {kind}")
 
 
